@@ -1,25 +1,12 @@
-use {
-    super::Allocator,
-    core::{
-        mem::MaybeUninit,
-        ptr::NonNull
-    }
+use super::{
+    Allocator,
+    parts::Parts
 };
 
 pub trait Like {
     type Type;
     type Item;
     type Heap: Allocator;
-    fn destruct(
-        value: Self::Type
-    ) -> (
-        Option<NonNull<[MaybeUninit<Self::Item>]>>,
-        usize,
-        Self::Heap
-    );
-    unsafe fn construct(
-        pointer: Option<NonNull<[MaybeUninit<Self::Item>]>>,
-        length: usize,
-        allocator: Self::Heap
-    ) -> Self::Type;
+    fn destruct(value: Self::Type) -> Parts<Self::Item, Self::Heap>;
+    unsafe fn construct(parts: Parts<Self::Item, Self::Heap>) -> Self::Type;
 }

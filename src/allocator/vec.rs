@@ -2,16 +2,19 @@
 pub use alloc::vec;
 #[cfg(feature = "allocator-api2")]
 pub use allocator_api2::vec;
-#[cfg(not(feature = "allocator-api2"))]
-use core::mem::ManuallyDrop;
+#[cfg(not(feature = "allocator-api"))]
+use core::mem::{
+    ManuallyDrop,
+    MaybeUninit
+};
 use {
     super::{
         Allocator,
-        like::Like
+        like::Like,
+        parts::Parts
     },
     core::{
         marker::PhantomData,
-        mem::MaybeUninit,
         num::NonZero,
         ptr::{
             NonNull,
@@ -20,6 +23,7 @@ use {
     }
 };
 
+#[derive(Debug)]
 pub struct Vec<Item, Heap: Allocator>(PhantomData<(Heap, Item)>);
 
 impl<Item, Heap: Allocator> Like for Vec<Item, Heap> {
@@ -34,73 +38,55 @@ impl<Item, Heap: Allocator> Like for Vec<Item, Heap> {
 
     #[cfg(not(feature = "allocator-api"))]
     #[inline]
-    fn destruct(
-        value: Self::Type
-    ) -> (
-        Option<NonNull<[MaybeUninit<Self::Item>]>>,
-        usize,
-        Self::Heap
-    ) {
+    fn destruct(value: Self::Type) -> Parts<Self::Item, Self::Heap> {
         let mut data = ManuallyDrop::new(value);
-        (
-            NonZero::new(data.capacity()).and_then(|capacity| {
+        Parts {
+            pointer: NonZero::new(data.capacity()).and_then(|capacity| {
                 NonNull::new(slice_from_raw_parts_mut(
                     data.as_mut_ptr().cast(),
                     capacity.get()
                 ))
             }),
-            data.len(),
+            length: data.len(),
             #[allow(clippy::uninit_assumed_init)]
-            unsafe {
-                MaybeUninit::uninit().assume_init()
-            }
-        )
+            allocator: unsafe { MaybeUninit::uninit().assume_init() }
+        }
     }
 
     #[cfg(all(feature = "allocator-api", not(feature = "allocator-api2")))]
     #[inline]
-    fn destruct(
-        mut value: Self::Type
-    ) -> (
-        Option<NonNull<[MaybeUninit<Self::Item>]>>,
-        usize,
-        Self::Heap
-    ) {
+    fn destruct(mut value: Self::Type) -> Parts<Self::Item, Self::Heap> {
         let (pointer, length, capacity, allocator) = value.into_raw_parts_with_allocator();
-        (
-            NonZero::new(capacity).and_then(|capacity| {
+        Parts {
+            pointer: NonZero::new(capacity).and_then(|capacity| {
                 NonNull::new(slice_from_raw_parts_mut(pointer.cast(), capacity.get()))
             }),
             length,
             allocator
-        )
+        }
     }
 
     #[cfg(feature = "allocator-api2")]
     #[inline]
-    fn destruct(
-        value: Self::Type
-    ) -> (
-        Option<NonNull<[MaybeUninit<Self::Item>]>>,
-        usize,
-        Self::Heap
-    ) {
+    fn destruct(value: Self::Type) -> Parts<Self::Item, Self::Heap> {
         let (pointer, length, capacity, allocator) = value.into_raw_parts_with_alloc();
-        (
-            NonZero::new(capacity).and_then(|capacity| {
+        Parts {
+            pointer: NonZero::new(capacity).and_then(|capacity| {
                 NonNull::new(slice_from_raw_parts_mut(pointer.cast(), capacity.get()))
             }),
-            length,
+            length: length,
             allocator
-        )
+        }
     }
 
     #[cfg(not(feature = "allocator-api"))]
     #[inline]
     unsafe fn construct(
-        pointer: Option<NonNull<[MaybeUninit<Self::Item>]>>,
-        length: usize,
-        _allocator: Self::Heap
+        Parts {
+            pointer,
+            length,
+            allocator: _allocator
+        }: Parts<Self::Item, Self::Heap>
     ) -> Self::Type {
         if let Some(pointer) = pointer {
             unsafe { Self::Type::from_raw_parts(pointer.as_ptr().cast(), length, pointer.len()) }
@@ -118,9 +104,11 @@ impl<Item, Heap: Allocator> Like for Vec<Item, Heap> {
     #[cfg(all(feature = "allocator-api", not(feature = "allocator-api2")))]
     #[inline]
     unsafe fn construct(
-        pointer: Option<NonNull<[MaybeUninit<Self::Item>]>>,
-        length: usize,
-        allocator: Self::Heap
+        Parts {
+            pointer,
+            length,
+            allocator
+        }: Parts<Self::Item, Self::Heap>
     ) -> Self::Type {
         if let Some(pointer) = pointer {
             unsafe {
@@ -145,9 +133,11 @@ impl<Item, Heap: Allocator> Like for Vec<Item, Heap> {
     #[cfg(feature = "allocator-api2")]
     #[inline]
     unsafe fn construct(
-        pointer: Option<NonNull<[MaybeUninit<Self::Item>]>>,
-        length: usize,
-        allocator: Self::Heap
+        Parts {
+            pointer,
+            length,
+            allocator
+        }: Parts<Self::Item, Self::Heap>
     ) -> Self::Type {
         if let Some(pointer) = pointer {
             unsafe {

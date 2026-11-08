@@ -1,3 +1,5 @@
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
 #[cfg(feature = "arrayvec")]
 use arrayvec::ArrayVec;
 #[cfg(feature = "equivalent")]
@@ -14,12 +16,12 @@ use {
     },
     alloc::{
         borrow::Cow,
-        collections::VecDeque,
-        vec::Vec
+        collections::VecDeque
     },
     core::cmp::Ordering
 };
 
+#[allow(unused_macro_rules)]
 macro_rules! implementation {
     ([$($generics:tt)*] for $left:ty =? $right:ty $(where $typename:ty: $bound:ident)?) => {
         impl<

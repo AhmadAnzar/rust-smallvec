@@ -22,10 +22,6 @@ use {
             Result as Format
         },
         iter::FusedIterator,
-        mem::{
-            align_of,
-            size_of
-        },
         ptr::{
             NonNull,
             slice_from_raw_parts_mut
@@ -228,7 +224,7 @@ impl<Item: Debug, const INLINE: usize, Heap: Allocator> Debug for IntoIter<Item,
 impl<Item: DeFormat, const INLINE: usize, Heap: Allocator> DeFormat
     for IntoIter<Item, INLINE, Heap>
 {
-    fn format(&self, fmt: DeFormatter) {
+    fn format(&self, fmt: DeFormatter<'_>) {
         dewrite!(fmt, "IntoIter({=[?]})", self.as_ref());
     }
 }

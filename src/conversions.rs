@@ -1,5 +1,7 @@
 #[cfg(feature = "specialization")]
 use super::specialization::SpecFromSlice;
+#[cfg(not(feature = "std"))]
+use alloc::borrow::ToOwned;
 #[cfg(feature = "arrayvec")]
 use arrayvec::ArrayVec;
 use {
@@ -10,15 +12,13 @@ use {
             boxed::Box,
             global::Global,
             like::Like,
+            parts::Parts,
             vec::Vec
         },
         locatedlength::LocatedLength,
         rawsmallvec::RawSmallVec
     },
-    alloc::borrow::{
-        Cow,
-        ToOwned
-    },
+    alloc::borrow::Cow,
     core::{
         mem::ManuallyDrop,
         ptr::{
@@ -54,21 +54,21 @@ impl<Item: Clone, const INLINE: usize> From<&[Item]> for SmallVec<Item, INLINE, 
 
 impl<Item: Clone, const INLINE: usize> From<&mut [Item]> for SmallVec<Item, INLINE, Global> {
     #[inline]
-    fn from(slice: &mut [Item]) -> Self { Self::from(slice as &[Item]) }
+    fn from(slice: &mut [Item]) -> Self { From::<&[Item]>::from(slice) }
 }
 
 impl<Item: Clone, const M: usize, const INLINE: usize> From<&[Item; M]>
     for SmallVec<Item, INLINE, Global>
 {
     #[inline]
-    fn from(slice: &[Item; M]) -> Self { Self::from(slice as &[Item]) }
+    fn from(slice: &[Item; M]) -> Self { From::<&[Item]>::from(slice) }
 }
 
 impl<Item: Clone, const M: usize, const INLINE: usize> From<&mut [Item; M]>
     for SmallVec<Item, INLINE, Global>
 {
     #[inline]
-    fn from(slice: &mut [Item; M]) -> Self { Self::from(slice as &[Item]) }
+    fn from(slice: &mut [Item; M]) -> Self { From::<&[Item]>::from(slice) }
 }
 
 impl<Item, const INLINE: usize, const M: usize> From<[Item; M]> for SmallVec<Item, INLINE, Global> {
@@ -303,8 +303,11 @@ impl<Item: Clone, const INLINE: usize> From<Cow<'_, [Item]>> for SmallVec<Item, 
 impl<Item: Clone, const INLINE: usize> From<SmallVec<Item, INLINE, Global>> for Cow<'_, [Item]> {
     #[inline]
     fn from(value: SmallVec<Item, INLINE, Global>) -> Self {
-        let (pointer, length, Global) =
-            <Vec<Item, Global> as Like>::destruct(<Vec<Item, Global> as Like>::Type::from(value));
+        let Parts {
+            pointer,
+            length,
+            allocator: Global
+        } = <Vec<Item, Global> as Like>::destruct(<Vec<Item, Global> as Like>::Type::from(value));
         Cow::Owned(unsafe {
             <[Item] as ToOwned>::Owned::from_raw_parts(
                 pointer

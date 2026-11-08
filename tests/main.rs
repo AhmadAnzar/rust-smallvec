@@ -3,11 +3,6 @@ use allocator_api2::{
     boxed::Box,
     vec::Vec
 };
-#[cfg(not(feature = "allocator-api2"))]
-use std::{
-    boxed::Box,
-    vec::Vec
-};
 use {
     core::{
         borrow::{
@@ -23,7 +18,6 @@ use {
             Hasher
         },
         iter::{
-            FromIterator,
             repeat_n,
             repeat_with
         },
@@ -31,7 +25,6 @@ use {
     },
     smallvec::SmallVec,
     std::{
-        borrow::ToOwned,
         hash::DefaultHasher,
         panic::{
             AssertUnwindSafe,
@@ -323,7 +316,7 @@ fn into_iter_rev() {
 fn into_iter_drop() {
     struct DropCounter<'valid>(&'valid Cell<i32>);
 
-    impl<'valid> Drop for DropCounter<'valid> {
+    impl Drop for DropCounter<'_> {
         fn drop(&mut self) { self.0.set(self.0.get() + 1); }
     }
 

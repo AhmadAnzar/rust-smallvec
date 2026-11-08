@@ -129,9 +129,7 @@ use {
         mem::{
             ManuallyDrop,
             MaybeUninit,
-            align_of,
-            forget,
-            size_of
+            forget
         },
         ops::{
             Range,
@@ -318,9 +316,9 @@ impl<Item, const INLINE: usize> SmallVec<Item, INLINE, Global> {
     /// a SmallVec back.
     #[inline]
     #[must_use = "dropping the parts leaks the elements and the heap buffer"]
-    #[cfg_attr(feature = "internals", syntax(pub))]
+    #[cfg(feature = "internals")]
     #[deprecated(since = "2.0.0-beta.4", note = "")]
-    fn into_parts(self) -> (LocatedLength<Item>, RawSmallVec<Item, INLINE>) { self.into() }
+    pub fn into_parts(self) -> (LocatedLength<Item>, RawSmallVec<Item, INLINE>) { self.into() }
 
     /// Rebuilds a `SmallVec` from the parts returned by
     /// [`into_parts`](Self::into_parts).
@@ -409,7 +407,7 @@ impl<Item, const INLINE: usize, Heap: Allocator> SmallVec<Item, INLINE, Heap> {
                 iter: range_slice.iter(),
                 // Since self is a &mut, passing it to a function would
                 // invalidate the slice iterator.
-                vec: NonNull::new_unchecked(self as *mut _)
+                vec: NonNull::new_unchecked(self)
             }
         }
     }
@@ -1294,9 +1292,11 @@ impl<Item, const INLINE: usize, Heap: Allocator> SmallVec<Item, INLINE, Heap> {
 
     #[inline]
     #[must_use = "dropping the parts leaks the elements and the heap buffer"]
-    #[cfg_attr(all(feature = "internals", feature = "allocator-api"), syntax(pub))]
+    #[cfg(all(feature = "internals", feature = "allocator-api"))]
     #[deprecated(since = "2.0.0-beta.4", note = "")]
-    fn into_parts_with_allocator(self) -> (LocatedLength<Item>, RawSmallVec<Item, INLINE>, Heap) {
+    pub fn into_parts_with_allocator(
+        self
+    ) -> (LocatedLength<Item>, RawSmallVec<Item, INLINE>, Heap) {
         self.into()
     }
 
@@ -1900,7 +1900,7 @@ unsafe impl<const INLINE: usize, Heap: Allocator> BufMut for SmallVec<u8, INLINE
 
 #[cfg(feature = "defmt")]
 impl<Item: Format, const INLINE: usize, Heap: Allocator> Format for SmallVec<Item, INLINE, Heap> {
-    fn format(&self, fmt: DeFormatter) {
+    fn format(&self, fmt: DeFormatter<'_>) {
         dewrite!(fmt, "{=[?]}", self.as_ref());
     }
 }

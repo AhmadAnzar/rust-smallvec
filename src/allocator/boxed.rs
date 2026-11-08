@@ -2,15 +2,13 @@ use {
     super::{
         Allocator,
         like::Like,
+        parts::Parts,
         vec::Vec
     },
-    core::{
-        marker::PhantomData,
-        mem::MaybeUninit,
-        ptr::NonNull
-    }
+    core::marker::PhantomData
 };
 
+#[derive(Debug)]
 pub struct Box<Item: ?Sized, Heap: Allocator>(PhantomData<(Heap, Item)>);
 
 impl<Item, Heap: Allocator> Like for Box<[Item], Heap> {
@@ -24,24 +22,12 @@ impl<Item, Heap: Allocator> Like for Box<[Item], Heap> {
     type Type = allocator_api2::boxed::Box<[Item], Heap>;
 
     #[inline]
-    fn destruct(
-        value: Self::Type
-    ) -> (
-        Option<NonNull<[MaybeUninit<Self::Item>]>>,
-        usize,
-        Self::Heap
-    ) {
+    fn destruct(value: Self::Type) -> Parts<Self::Item, Self::Heap> {
         <Vec<Item, Heap> as Like>::destruct(value.into_vec())
     }
 
     #[inline]
-    unsafe fn construct(
-        pointer: Option<NonNull<[MaybeUninit<Self::Item>]>>,
-        length: usize,
-        allocator: Self::Heap
-    ) -> Self::Type {
-        unsafe {
-            <Vec<Item, Heap> as Like>::construct(pointer, length, allocator).into_boxed_slice()
-        }
+    unsafe fn construct(parts: Parts<Self::Item, Self::Heap>) -> Self::Type {
+        unsafe { <Vec<Item, Heap> as Like>::construct(parts).into_boxed_slice() }
     }
 }
